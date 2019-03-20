@@ -11,7 +11,7 @@ const HOURS = ['Jan', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'X
 const COLOR = '#fff';
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const theYear = 2019;
-const 
+
 
 function daysInMonth(iMonth, iYear)
 {
