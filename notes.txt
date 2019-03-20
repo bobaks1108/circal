@@ -1,0 +1,5 @@
+npm install --save react
+npm install react-scripts --save
+npm i --save-dev react-dom
+npm install d3 --save
+npm start
