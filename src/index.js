@@ -3,15 +3,34 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import * as d3 from "d3";
 
-
-
-const PADDING = 10
-const HOURS = ['Jan', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
-//const BG_COLOR = '#123';
-const COLOR = '#fff';
+const PADDING = 10 // space from edge
+const HOURS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const BG_COLOR = '#fff';
+const COLOR = '#000'; // color of main clock 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'July', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const theYear = 2019;
+const theYear = 2020;
+let isCalClockwise = true;
 
+const radianFactor = Math.PI/180;
+
+let startAngle = (isCalClockwise ? 0 : 0);
+let endAngle = (isCalClockwise ? 360 : -360);
+
+let textOffsetClockwise = { topHalf: 20, bottomHalf: -12 };
+let textOffsetAntiClockwise = { topHalf: 20, bottomHalf: -12 };
+
+console.log("startAngle =" + startAngle);
+console.log("endAngle =" + endAngle);
+
+function getTextOffset(isTop, isCalClockwise) {
+  let valueToReturn;
+  if (isCalClockwise && isTop) { valueToReturn=textOffsetClockwise.topHalf }
+  if (isCalClockwise && !isTop) { valueToReturn=textOffsetClockwise.bottomHalf }
+  if (!isCalClockwise && isTop) { valueToReturn=textOffsetAntiClockwise.topHalf }
+  if (!isCalClockwise && !isTop) { valueToReturn=textOffsetAntiClockwise.bottomHalf }
+  console.log("valueToReturn="+valueToReturn)
+  return valueToReturn;
+}
 
 function daysInMonth(iMonth, iYear)
 {
@@ -38,11 +57,18 @@ function dayOfMonthFromDay(year, day){
   return theDate.getDate()
 }
 
-function calcIfRotate(angle) {
-  const HALF_CIRCLE_PI_FACTOR = Math.PI/180
-  if (angle > 90 * HALF_CIRCLE_PI_FACTOR && angle < 270 * HALF_CIRCLE_PI_FACTOR) {
+function isArcInTopHalf(radian,d_obj) {
+  //console.log("angle="+radian)
+  //console.log("d="+d_obj)
+  const HALF_CIRCLE_PI_FACTOR = 180/Math.PI
+  //console.log("HALF_CIRCLE_PI_FACTOR="+HALF_CIRCLE_PI_FACTOR)
+  //console.log("Math.abs(radian*HALF_CIRCLE_PI_FACTOR="+Math.abs(radian*HALF_CIRCLE_PI_FACTOR))
+  if ((Math.abs(radian*HALF_CIRCLE_PI_FACTOR) < 90 || 
+   Math.abs(radian*HALF_CIRCLE_PI_FACTOR) > 270)) {
+    //console.log("Cal if rotate true")
     return true
   } else {
+    //console.log("Cal if rotate false")
     return false
   }
 }
@@ -52,9 +78,11 @@ class ClockControl extends React.Component {
 	componentDidMount() {
     console.log("v1.2")
     this.drawDonut()
+    //this.drawDonut1()
     this.drawFrame()	
   	this.drawDays()
     this.drawHands()
+   // this.drawDigits()
     this.updateTime()
 
   }
@@ -95,22 +123,7 @@ class ClockControl extends React.Component {
 		HOURS.forEach(drawHourDigit)	
   }
 
-  drawMonths() {
-		const center = this.props.size / 2
-		const radius = center - PADDING
-    
-		const drawHourDigit = (v, i) => {
-      const transformG = `rotate(${((i+1) * 30 - 15)},${center},${center})`
-      const transformT = `scale(1,1) translate(${center}, ${center - radius * 0.92})`
-    	const g = this.svg.append('g')
-				.attr('transform', transformG)
-    	g.append('text').text(v)
-				.attr('text-anchor', 'top')
-        .attr('transform', transformT)
-        .style('fill', COLOR)
-    } 
-		MONTHS.forEach(drawHourDigit)	
-  }
+  
 
   drawDonut() {
     const center = this.props.size / 2
@@ -126,9 +139,7 @@ class ClockControl extends React.Component {
       console.log(width)
       console.log(height)
           
-     const g = this.svg
-           .append("g").attr("class", "wrapper")
-           .attr("transform", "translate(" + (center) + "," + (center) + ")");
+    
 
 
     //Some random data
@@ -157,17 +168,21 @@ class ClockControl extends React.Component {
     //     .interpolate(d3.interpolateHcl);
     
     //Create an arc function   
-    const arc = d3.arc()
+    var arc = d3.arc()
       .innerRadius(radius-20) 
       .outerRadius(radius-10);
     
     //Turn the pie chart 90 degrees counter clockwise, so it starts at the left	
-    const pie = d3.pie()
-      .startAngle(0)
-      .endAngle(-2*Math.PI)
+    var pie = d3.pie()
+      .startAngle(startAngle * radianFactor)
+      .endAngle(endAngle * radianFactor)
       .value(function(d) { return d.value; })
       .padAngle(.001)
       .sort(null);
+
+      // for clockwise
+      //.startAngle(0 * (Math.PI/180))
+      //.endAngle(360 * (Math.PI/180))
 
     // var enterAntiClockwise = {
     //   startAngle: Math.PI * 1.8,
@@ -178,23 +193,40 @@ class ClockControl extends React.Component {
     let monthNumber = 0 
 
       //Create the donut slices and also the invisible arcs for the text 
-    g.selectAll(".donutArcs")
+    var g = this.svg
+    .append("g").attr("class", "wrapper")
+    .attr("transform", "translate(" + (center) + "," + (center) + ")");
+    
+
+    // todo: make fade in to work line 214 fade green to red example not needed
+    
+    g.selectAll(".monthArcs")
     .data(pie(donutData))
-    .enter().append("path")
-    .attr("class", "donutArcs")
+    .enter()
+    .append("path")
+    .attr("class", "monthArcs")
     .attr("d", arc)
     .attr("id", function(d,i) {
       return "DA"+i; 
     })
+    .style("opacity", 0)
     .style("fill", function(d,i) {
-      if(i === 7) return "#CCCCCC"; //Other
-      else return "#dddddd"; 
+      if(i%2 == 0) return "#777"; //Other
+      else return "#bbb"; 
     })
+    .transition(0)
+    .delay(function(d, i) {
+      return (i * 75) + 1000;
+    })
+    .duration(0)
+    .style("opacity", 1)
     .each(function(d,i) {
       //Search pattern for everything between the start and the first capital L
       let firstArcSection = /(^.+?)L/; 
 
-      console.log(donutData[monthNumber].name)
+      console.log("");
+      console.log("############################################");
+      console.log("Month: "+donutData[monthNumber].name)
       monthNumber++
       
       // console.log("d ~~~~~~~~~~~~~~~~~~~~~~~~~~~#")
@@ -211,23 +243,65 @@ class ClockControl extends React.Component {
       // console.log("new arc =============")
       // console.log(newArc)
 
-      console.log("d.endAngle")
-      console.log(d.endAngle)
+      console.log("d.value no of days in month")
+      console.log(d.value)
+      console.log("isArcInTopHalf(d.endAngle)="+isArcInTopHalf(d.endAngle))
+      console.log("isCalClockwise="+isCalClockwise)
 
-      if (calcIfRotate(d.endAngle)) {
+      if ((isArcInTopHalf(d.endAngle) && !isCalClockwise) || 
+         (!isArcInTopHalf(d.endAngle) && isCalClockwise)) {
         console.log("Rotate")
+        console.log("orig newArc "+newArc)
 
-        let startLoc 	= /M(.*?)A/,		//Everything between the first capital M and first capital A
-          middleLoc 	= /A(.*?)0 0 1/,	//Everything between the first capital A and 0 0 1
-          endLoc 		= /0 0 1 (.*?)$/;	//Everything between the first 0 0 1 and the end of the string (denoted by $)
+        //newArc M142.25575946499205 -241.17068416173288A280 280 0 0 0 0.19448649528401957 -279.9999324553546
+        //endSec: 0 0.19448649528401957 -279.9999324553546
+        //startSec: 142.25575946499205 -241.17068416173288
+        //middleSec: 280 28
+
+        let startLoc 	= /M(.*?)A/; 	//Everything between the first capital M and first capital A
+        let middleLoc;
+        let endLoc;
+        let sweepFlag;
+
+        // See: https://www.w3.org/TR/SVG/paths.html
+        // http://www.pindari.com/svg-arc.html
+        // first 0 x-axis-rotation
+        // second 0 large-arc-flag
+        // third 0 sweep flag
+
+        if (newArc.includes(" 0 0 0 ")) {
+          sweepFlag = 0;
+          middleLoc = /A(.*?) 0 0 /;	//Everything between the first capital A and 0 0 1
+          endLoc 		= / 0 0 0 (.*?)$/;	//Everything between the first 0 0 1 and the end of the string (denoted by $)
+        } else {
+          sweepFlag = 1;
+          middleLoc = /A(.*?) 0 0 1/;	//Everything between the first capital A and 0 0 1
+          endLoc 		= / 0 0 1 (.*?)$/;	//Everything between the first 0 0 1 and the end of the string (denoted by $)
+        };
+
+        console.log("sweepFlag="+ sweepFlag)
         //Flip the direction of the arc by switching the start en end point (and sweep flag)
-        //of those elements that are below the horizontal line
-        let newStart = endLoc.exec( newArc )[1];
-        let newEnd = startLoc.exec( newArc )[1];
-        let middleSec = middleLoc.exec( newArc )[1];
+        //of those elements that are above the horizontal line
         
+        let endSec = endLoc.exec( newArc )[1];
+        let startSec = startLoc.exec( newArc )[1];
+        let middleSec = middleLoc.exec( newArc )[1];
+        console.log("endSec: "+endSec)
+        console.log("startSec: "+startSec)
+        console.log("middleSec: "+middleSec)
+
+        // todo fix incorrect newArc 
         //Build up the new arc notation, set the sweep-flag to 0
-        newArc = "M" + newStart + "A" + middleSec + "0 0 0 " + newEnd;
+        if ((sweepFlag==1 && !isCalClockwise)) {
+          newArc = "M" + endSec + "A" + middleSec + " 0 0 1 " + startSec;
+        } else if ((sweepFlag==1 && isCalClockwise)) {     
+          newArc = "M" + endSec + "A" + middleSec + " 0 0 0 " + startSec;
+        } else if ((sweepFlag==0 && !isCalClockwise)) {     
+          newArc = "M" + endSec + "A" + middleSec + " 0 0 1 " + startSec;
+        } else {
+          newArc = "M" + endSec + "A" + middleSec + " 0 0 0 " + startSec;
+        }
+        console.log("newArc= "+newArc)
       } //if
       
             //Create a new invisible arc that the text can flow along
@@ -260,15 +334,20 @@ class ClockControl extends React.Component {
     //Append the label names on the outside
     g.selectAll(".donutText")
       .data(pie(donutData))
-      .enter().append("text")
+      .enter()
+      .append("text")
       .attr("class", "monthtext")
       //Move the labels below the arcs for those slices with an end angle greater than 90 degrees
-      .attr("dy", function(d,i) { return (calcIfRotate(d.endAngle) ? -16 : -20); })
+      .attr("dy", function(d,i) { return (getTextOffset(isArcInTopHalf(d.endAngle,d),isCalClockwise)); })
       .append("textPath")
       .attr("startOffset","50%")
       .style("text-anchor","middle")
       .style('fill', COLOR)
       .attr("xlink:href",function(d,i){return "#donutArc"+i;})
+      .transition(0)
+      .delay(function(d, i) {
+        return (i * 75)+ (12 * 75) + 1000;
+      })
       .text(function(d){return d.data.name;});
   }
 
